@@ -1,0 +1,13 @@
+# Terraform generated files
+.terraform/
+.terraform.lock.hcl
+terraform.tfstate
+terraform.tfstate.backup
+crash.log
+
+# Variable values
+*.tfvars
+*.tfvars.json
+
+# Sensitive outputs
+kubeconfig
