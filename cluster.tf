@@ -225,19 +225,27 @@ resource "aws_instance" "bastion" {
 # ------------------------
 data "template_file" "install_containerd" {
   template = <<-EOF
-    #!/bin/bash
+       #!/bin/bash
     set -e
+    
+    //agregar runc, contanerd y cni
 
-    apt-get update && apt-get install -y containerd
+    apt-get update && apt-get install -y curl wget tar apt-transport-https ca-certificates gpg
 
-    mkdir -p /etc/containerd
-    containerd config default > /etc/containerd/config.toml
+    # Kubernetes v1.31
+    mkdir -p -m 755 /etc/apt/keyrings
+    curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.31/deb/Release.key | gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+    echo 'deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.31/deb/ /' > /etc/apt/sources.list.d/kubernetes.list
+    apt-get update
+    apt-get install -y kubelet kubeadm kubectl
+    apt-mark hold kubelet kubeadm kubectl
 
-    # Asegurarse de que Systemd sea el cgroup driver
-    sed -i 's/SystemdCgroup = false/SystemdCgroup = true/' /etc/containerd/config.toml
-
-    systemctl restart containerd
-    systemctl enable containerd
+    # Ajustes del sistema
+    swapoff -a
+    sed -i '/ swap / s/^/#/' /etc/fstab
+    sysctl -w net.ipv4.ip_forward=1
+    echo 'net.ipv4.ip_forward=1' >> /etc/sysctl.conf
+    sysctl -p
   EOF
 }
 
