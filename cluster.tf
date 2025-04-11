@@ -225,27 +225,45 @@ resource "aws_instance" "bastion" {
 # ------------------------
 data "template_file" "install_containerd" {
   template = <<-EOF
-       #!/bin/bash
+    #!/bin/bash
     set -e
     
-    //agregar runc, contanerd y cni
+    #Se agrega contanerd, runc y cni
+    sudo wget https://github.com/containerd/containerd/releases/download/v2.0.4/containerd-2.0.4-linux-amd64.tar.gz
+    sudo tar Cxzvf /usr/local containerd-2.0.4-linux-amd64.tar.gz
 
-    apt-get update && apt-get install -y curl wget tar apt-transport-https ca-certificates gpg
+    sudo mkdir /usr/local/lib/systemd/
+    sudo mkdir /usr/local/lib/systemd/system/
+    sudo wget https://raw.githubusercontent.com/containerd/containerd/main/containerd.service
+    sudo cp ./containerd.service /usr/local/lib/systemd/system/containerd.service
+
+    sudo systemctl daemon-reload
+    sudo systemctl enable --now containerd
+
+    sudo wget https://github.com/opencontainers/runc/releases/download/v1.2.6/runc.amd64
+    sudo install -m 755 runc.amd64 /usr/local/sbin/runc
+
+
+    sudo wget https://github.com/containernetworking/plugins/releases/download/v1.6.2/cni-plugins-linux-amd64-v1.6.2.tgz
+    sudo mkdir -p /opt/cni/bin
+    tar Cxzvf /opt/cni/bin cni-plugins-linux-amd64-v1.6.2.tgz
+
+    sudo apt-get update && apt-get install -y curl wget tar apt-transport-https ca-certificates gpg
 
     # Kubernetes v1.31
-    mkdir -p -m 755 /etc/apt/keyrings
-    curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.31/deb/Release.key | gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+    sudo mkdir -p -m 755 /etc/apt/keyrings
+    sudo curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.31/deb/Release.key | gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
     echo 'deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.31/deb/ /' > /etc/apt/sources.list.d/kubernetes.list
-    apt-get update
-    apt-get install -y kubelet kubeadm kubectl
-    apt-mark hold kubelet kubeadm kubectl
+    sudo apt-get update
+    sudo apt-get install -y kubelet kubeadm kubectl
+    sudo apt-mark hold kubelet kubeadm kubectl
 
     # Ajustes del sistema
-    swapoff -a
-    sed -i '/ swap / s/^/#/' /etc/fstab
-    sysctl -w net.ipv4.ip_forward=1
+    sudo swapoff -a
+    sudo sed -i '/ swap / s/^/#/' /etc/fstab
+    sudo sysctl -w net.ipv4.ip_forward=1
     echo 'net.ipv4.ip_forward=1' >> /etc/sysctl.conf
-    sysctl -p
+    sudo sysctl -p
   EOF
 }
 
