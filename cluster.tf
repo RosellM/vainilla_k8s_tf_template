@@ -264,6 +264,10 @@ data "template_file" "install_containerd" {
     sudo sysctl -w net.ipv4.ip_forward=1
     echo 'net.ipv4.ip_forward=1' >> /etc/sysctl.conf
     sudo sysctl -p
+
+    sudo mkdir -p /etc/containerd/
+    sudo containerd config default | sudo tee /etc/containerd/config.toml > /dev/null
+    sudo systemctl restart containerd
   EOF
 }
 
