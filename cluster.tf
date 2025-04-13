@@ -207,6 +207,21 @@ resource "aws_security_group" "bastion_sg" {
 # ------------------------
 # Bastion Host
 # ------------------------
+
+data "template_file" "pem_injector" {
+  template = <<-EOF
+    #!/bin/bash
+    mkdir -p /home/ubuntu/.ssh
+    echo "$${pem_content}" > /home/ubuntu/.ssh/k8s_key.pem
+    chmod 600 /home/ubuntu/.ssh/k8s_key.pem
+    chown ubuntu:ubuntu /home/ubuntu/.ssh/k8s_key.pem
+  EOF
+
+  vars = {
+    pem_content = file("${path.module}/k8s_key.pem")
+  }
+}
+
 resource "aws_instance" "bastion" {
   ami                         = var.ami_id
   instance_type               = "t3.micro"
@@ -214,7 +229,7 @@ resource "aws_instance" "bastion" {
   vpc_security_group_ids      = [aws_security_group.bastion_sg.id]
   associate_public_ip_address = true
   key_name                    = "k8s_key"
-
+  user_data = data.template_file.pem_injector.rendered
   tags = {
     Name = "k8s-bastion"
   }
@@ -299,19 +314,5 @@ resource "aws_instance" "k8s_worker1" {
 
   tags = {
     Name = "k8s-worker-1"
-  }
-}
-
-resource "aws_instance" "k8s_worker2" {
-  ami                         = var.ami_id
-  instance_type               = "t3.medium"
-  subnet_id                   = aws_subnet.private_worker2.id
-  vpc_security_group_ids      = [aws_security_group.k8s_sg.id]
-  associate_public_ip_address = false
-  key_name                    = "k8s_key"
-  user_data                   = data.template_file.install_containerd.rendered
-
-  tags = {
-    Name = "k8s-worker-2"
   }
 }
